@@ -49,13 +49,23 @@ class OperacoesSA(object):
     __repr__ = __str__
 
 
-class SistemaArquivos(object):
+class Disco(object):
 
     def __init__(self):
         self.qtd_blocos = None
         self.qtd_segmentos = None
         self.arquivos = None
         self.operacoes = None
+    
+    def alocacao(self):
+        mapa = ['0']*self.qtd_blocos
+        for arq in self.arquivos:
+            mapa[arq.inicio:arq.inicio+1] = arq.nome * arq.tamanho
+        
+        return mapa
+
+    def __str__(self):
+        return ''.join(self.alocacao())
 
 
 
@@ -92,32 +102,32 @@ def le_processos(arq_processos='processes.txt'):
     #         print(line, end='')
 
 
-def le_sistema_arquivos(arq_file_system='files.txt'):
+def le_disco(arq_disco='files.txt'):
     
-    sa = SistemaArquivos()
+    disco = Disco()
 
-    with open(arq_file_system, 'r') as f:
+    with open(arq_disco, 'r') as f:
         lines = f.read().splitlines()
-        sa.qtd_blocos = int(lines.pop(0))
-        sa.qtd_segmentos = int(lines.pop(0))
+        disco.qtd_blocos = int(lines.pop(0))
+        disco.qtd_segmentos = int(lines.pop(0))
         
-        arqs = lines[:sa.qtd_segmentos]
-        sa.arquivos = []
+        arqs = lines[:disco.qtd_segmentos]
+        disco.arquivos = []
         for arq in arqs:
             arq = arq.split(', ')
-            sa.arquivos.append(Arquivo(arq[0], int(arq[1]), int(arq[2])))
+            disco.arquivos.append(Arquivo(arq[0], int(arq[1]), int(arq[2])))
             
-        operacoes = lines[sa.qtd_segmentos:]
-        sa.operacoes = []
+        operacoes = lines[disco.qtd_segmentos:]
+        disco.operacoes = []
         for operacao in operacoes:
             operacao = operacao.split(', ')
             if int(operacao[1]) == 0:
                 op = OperacoesSA(int(operacao[0]), int(operacao[1]), operacao[2], int(operacao[3]))
             else:
                 op = OperacoesSA(int(operacao[0]), int(operacao[1]), operacao[2])
-            sa.operacoes.append(op)
+            disco.operacoes.append(op)
 
-    return sa
+    return disco
 
 
 
@@ -125,13 +135,15 @@ def main():
     
     tbl_processos = le_processos()
 
-    sistema_arquivos = le_sistema_arquivos()
+    sistema_arquivos = le_disco()
 
     for b in tbl_processos.lista:
         print(b)
 
     for b in sistema_arquivos.__dict__.values():
         print(b)
+
+    print(sistema_arquivos)
 
 if __name__ == '__main__':
     main()
