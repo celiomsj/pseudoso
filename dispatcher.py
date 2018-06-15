@@ -1,5 +1,5 @@
 
-class Processos(object):
+class Processo(object):
     
     def __init__(self):
         self.t_inicial = None
@@ -64,6 +64,39 @@ class Disco(object):
         
         return mapa
 
+    def deleta_arquivo(self, processo, nome_arquivo):
+        
+        arq = self.procura_arquivo(nome_arquivo)
+        if arq is None:
+            # arquivo não existe
+            return False
+        else:
+            if processo.prioridade == 0:
+                # O arquivo existe, o processo tem permissao e 
+                # é preciso excluí-lo do disco.
+                # TODO: Incluir operação no log.
+                self.qtd_segmentos -= 1
+                self.arquivos.remove(arq)
+                return True
+
+            elif processo.prioridade > 0 and processo.nome == arq.criador:
+                self.qtd_segmentos -= 1
+                self.arquivos.remove(arq)
+                return True
+
+            else:
+                return False
+
+
+    def cria_arquivo(self, processo, nome_arquivo, tamanho):
+        pass
+
+    def procura_arquivo(self, nome_arquivo):
+        ''' Procura arquivo no disco dado o nome, ou retorna None
+        '''
+        return next((arq for arq in self.arquivos if arq.nome == nome_arquivo), None)
+
+
     def __str__(self):
         return ''.join(self.alocacao())
 
@@ -77,7 +110,7 @@ def le_processos(arq_processos='processes.txt'):
         lines = f.read().splitlines()
         for line in lines:
             line = line.split(', ')
-            a = Processos()
+            a = Processo()
             a.t_inicial = int(line[0])
             a.prioridade = int(line[1])
             a.t_CPU = int(line[2])
