@@ -2,6 +2,7 @@
 class Processo(object):
     
     def __init__(self):
+        self.pid = None
         self.t_inicial = None
         self.prioridade = None
         self.t_CPU = None
@@ -59,8 +60,9 @@ class Disco(object):
     
     def alocacao(self):
         mapa = ['0']*self.qtd_blocos
-        for arq in self.arquivos:
-            mapa[arq.inicio:arq.inicio+1] = arq.nome * arq.tamanho
+        arqs = sorted(self.arquivos, key=lambda x: x.inicio)
+        for arq in arqs:
+            mapa[arq.inicio:arq.inicio+arq.tamanho] = arq.nome * arq.tamanho
         
         return mapa
 
@@ -79,7 +81,7 @@ class Disco(object):
                 self.arquivos.remove(arq)
                 return True
 
-            elif processo.prioridade > 0 and processo.nome == arq.criador:
+            elif processo.prioridade > 0 and processo.pid == arq.criador:
                 self.qtd_segmentos -= 1
                 self.arquivos.remove(arq)
                 return True
@@ -89,13 +91,35 @@ class Disco(object):
 
 
     def cria_arquivo(self, processo, nome_arquivo, tamanho):
-        pass
+        
+        if self.procura_arquivo(nome_arquivo) is not None:
+            return False
+
+        inicio = self.procura_espaco_livre(tamanho)
+        if inicio == -1:
+            return False
+
+        arq = Arquivo(nome_arquivo, inicio, tamanho, processo.pid)
+        self.arquivos.append(arq)
+        self.qtd_segmentos += 1
+        # TODO: incluir operação no log
+
+        return True
+
+        
 
     def procura_arquivo(self, nome_arquivo):
         ''' Procura arquivo no disco dado o nome, ou retorna None
         '''
         return next((arq for arq in self.arquivos if arq.nome == nome_arquivo), None)
 
+
+    def procura_espaco_livre(self, tamanho):
+        
+        disco = ''.join(self.alocacao())
+        return disco.find('0'*tamanho)
+        
+        
 
     def __str__(self):
         return ''.join(self.alocacao())
