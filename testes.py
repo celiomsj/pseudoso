@@ -44,6 +44,36 @@ class TesteDisco(unittest.TestCase):
         self.assertTrue(sa.cria_arquivo(p1, 'A', 3))
         self.assertEqual(''.join(sa.alocacao()), 'XX0Y0ZAAA0')
 
+    def test_aloca_memoria(self):
+
+        m = Memoria()
+        p1 = Processo()
+        p1.pid = 1
+        p1.prioridade = 0
+        p1.blocos_mem = 50
+        p2 = Processo()
+        p2.pid = 2
+        p2.prioridade = 0
+        p2.blocos_mem = 50
+
+        self.assertTrue(m.aloca(p1))
+        self.assertFalse(m.aloca(p2))
+        p2.prioridade = 10
+        self.assertTrue(m.aloca(p2))
+
+    def test_libera_memoria(self):
+
+        m = Memoria()
+        p1 = Processo()
+        p1.pid = 1
+        p1.prioridade = 1
+        p1.blocos_mem = 100
+        
+        m.aloca(p1)
+        self.assertEqual(p1.bloco_inicio, 64)
+        self.assertTrue(m.libera(p1))
+        self.assertIsNone(p1.bloco_inicio)
+
 
 if __name__ == '__main__':
     unittest.main()
