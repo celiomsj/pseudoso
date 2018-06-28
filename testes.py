@@ -75,5 +75,39 @@ class TesteDisco(unittest.TestCase):
         self.assertIsNone(p1.bloco_inicio)
 
 
+    def test_aloca_recurso(self):
+
+        p1 = Processo()
+        p1.pid = 1
+        p1.prioridade = 0
+
+        ges = GerenciadorRecursos()
+
+        self.assertTrue(ges.aloca(p1))
+
+        p1.prioridade = 1
+        p1.scanner = True
+
+        self.assertTrue(ges.aloca(p1))
+        self.assertEqual(ges.scanner, p1.pid)
+
+        p2 = Processo()
+        p2.pid = 2
+        p2.prioridade = 1
+        p2.scanner = True
+        self.assertFalse(ges.aloca(p2))
+
+        p2.scanner = None
+        p2.cod_disco = 1
+        p2.cod_impressora = 0
+        self.assertTrue(ges.aloca(p2))
+        self.assertEqual(ges.disco[1], p2.pid)
+
+        ges.desaloca(p2)
+        self.assertIsNone(ges.disco[1])
+
+
+
+
 if __name__ == '__main__':
     unittest.main()
