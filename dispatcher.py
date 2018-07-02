@@ -281,7 +281,9 @@ class Dispatcher(object):
     def __init__(self, tabela_processos, disco):
         self.cpu = None
         self.tempo = 0
+        self.quantum = 1
         self.prox_id = 1
+        self.ultima_execucao = None
         self.g_memoria = Memoria()
         self.g_recursos = GerenciadorRecursos()
         self.tabela_processos = tabela_processos
@@ -350,54 +352,23 @@ class Dispatcher(object):
 
         while True:
 
-            
-
             self.novos_processos()
             #self.g_filas.escalonar()
             
-            if self.cpu is None:
-                self.cpu = self.g_filas.escolher()
-
-
-            if self.cpu is None:
-                self.tempo += 1
-                continue  # Não há nenhum processo
-
-            print("Dispatcher =>")
-            print("\tPID:\t{}".format(self.cpu.pid))
-            print("\toffset:\t{}".format(self.cpu.bloco_inicio))
-
-
-            self.tempo += 1
-            self.cpu.t_CPU -= 1
-            self.cpu.t_utilizado += 1
-            self.cpu.estado = 3  # Em execução
-            time.sleep(0.1)
-            print("Process {}:\n\t{} =>".format(self.cpu.pid, self.cpu.t_CPU))
-
-
-            self.cpu.estado = 2  # Pronto
-
-            if self.cpu.t_CPU == 0:
-                self.cpu.estado = 5  # Completo
-                self.g_memoria.libera(self.cpu)
-                self.g_recursos.desaloca(self.cpu)
-                
-        
-            if self.cpu.prioridade == 0:
-                if self.cpu.estado == 5:
-                    self.cpu = None
+            if self.cpu is not None:
+                self.executaProcesso(self.cpu)
+            else:
+                p_atual = self.g_filas.escolher()
+                if p_atual is not None:
+                    print("Dispatcher =>")
+                    print("\tPID:\t{}".format(p_atual.pid))
+                    print("\toffset:\t{}".format(p_atual.bloco_inicio))
+                    
+                    self.executaProcesso(p_atual)
+                    self.atualiza_processo(p_atual)
                 else:
-                    continue  # Permanece na cpu, segue para o próximo loop
-            elif self.cpu.prioridade == 1:
-                self.g_filas.fila_p1.append(self.cpu)
-                self.cpu = None
-            elif self.cpu.prioridade == 2:
-                self.g_filas.fila_p2.append(self.cpu)
-                self.cpu = None
-            elif self.cpu.prioridade == 3:
-                self.g_filas.fila_p3.append(self.cpu)
-                self.cpu = None
+                    self.executaProcesso(p_atual)  # O método trata o caso que p_atual é None
+
                 
 
             if self.acabou():
@@ -408,6 +379,75 @@ class Dispatcher(object):
 
     def acabou(self):
         return all([p.estado == 5 for p in self.tabela_processos.lista])
+
+
+    def executaProcesso(self, processo):
+
+        if processo is None:
+            self.tempo += self.quantum  # Clock tick
+            time.sleep(0.1)
+            print("Não há processo a ser executado.")
+            return
+        
+
+        if not(self.ultima_execucao == processo):
+            print("Process {} =>".format(processo.pid))
+
+        if processo.prioridade == 0:
+            if processo.t_utilizado == 0:
+                print("P{} STARTED".format(processo.pid))
+        else:
+            if processo.t_utilizado == 0:
+                print("P{} STARTED".format(processo.pid))
+            else:
+                print("P{} RESUMED".format(processo.pid))
+
+        
+        self.tempo += self.quantum  # Clock tick
+        time.sleep(0.1)
+
+        processo.t_CPU -= self.quantum
+        processo.t_utilizado += self.quantum
+        self.cpu = processo
+        print("P{} instruction {}".format(processo.pid, processo.t_utilizado))
+        self.ultima_execucao = processo
+
+
+        if processo.t_CPU == 0:
+            processo.estado = 5  # Completo
+            self.g_memoria.libera(processo)
+            self.g_recursos.desaloca(processo)
+            self.cpu = None
+            print("P{} return SIGINT".format(processo.pid))
+        else:
+            if processo.prioridade > 0:
+                self.cpu = None
+        
+        return
+
+
+    def atualiza_processo(self, processo):
+        '''
+        Atualiza o processo nas fila.
+        Incrementa a prioridade de processso de usuario.
+        '''
+
+        # Se a prioridade for 0, não é necessário fazer nada.
+
+        if processo.prioridade == 1:
+            processo.prioridade = 2
+            self.g_filas.fila_p2.append(processo)
+        elif processo.prioridade == 2:
+            processo.prioridade = 3
+            self.g_filas.fila_p3.append(processo)
+        elif processo.prioridade == 3:
+            self.g_filas.fila_p3.append(processo)
+
+
+
+        
+
+
 
 
 def le_processos(arq_processos='processes.txt'):
