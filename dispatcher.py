@@ -1,3 +1,5 @@
+import time
+
 
 class Processo(object):
     
@@ -6,12 +8,14 @@ class Processo(object):
         self.t_inicial = None
         self.prioridade = None
         self.t_CPU = None
+        self.t_utilizado = None
         self.bloco_inicio = None
         self.blocos_mem = None
         self.cod_impressora = None
         self.scanner = None
         self.modem = None
         self.cod_disco = None
+        self.estado = None
 
 
     def __str__(self):
@@ -243,6 +247,168 @@ class Disco(object):
         return ''.join(self.alocacao())
 
 
+class Escalonador(object):
+
+    def __init__(self):
+        self.max = 1000
+        self.tabela_processos = None
+        self.fila_global = []
+        self.fila_tr = []
+        self.fila_p1 = []
+        self.fila_p2 = []
+        self.fila_p3 = []
+
+    def escolher(self):
+        
+        if len(self.fila_tr) > 0:
+            return self.fila_tr.pop(0)
+
+        if len(self.fila_p1) > 0:
+            return self.fila_p1.pop(0)
+
+        if len(self.fila_p2) > 0:
+            return self.fila_p2.pop(0)
+
+        if len(self.fila_p3) > 0:
+            return self.fila_p3.pop(0)
+
+        return None
+
+
+
+class Dispatcher(object):
+
+    def __init__(self, tabela_processos, disco):
+        self.cpu = None
+        self.tempo = 0
+        self.prox_id = 1
+        self.g_memoria = Memoria()
+        self.g_recursos = GerenciadorRecursos()
+        self.tabela_processos = tabela_processos
+        self.g_filas = Escalonador()
+        self.g_disco = disco
+
+    
+    def cria_processo(self, processo):
+        
+        if processo.pid is None:
+            # É necessário checar se há memória disponível antes de
+            # criar o processo.
+            if (self.g_memoria.aloca(processo)):
+                processo.pid = self.prox_id
+                self.prox_id += 1
+                
+                print("Processo {} criado".format(processo.pid))
+                return True
+
+        # ELSE Erro. Não ha espaco na memoria.
+
+        return False
+    
+
+    def novos_processos(self):
+        novos = [p for p in self.tabela_processos.lista if p.t_inicial == self.tempo]
+        for processo in novos:
+            if (self.cria_processo(processo)):
+                # self.tabela_processos.lista.remove(processo)
+                if processo.prioridade > 0:
+                    processo.estado = 1  # Suspenso
+                else:  # prioridade 0
+                    processo.estado = 2  # Pronto
+
+                # Envia para o escalonador
+                print("Inserindo processo {} na fila.".format(processo.pid))
+                self.insere(processo)
+
+        return
+
+
+    def insere(self, processo):
+        
+        if processo.prioridade == 0:
+            self.g_filas.fila_tr.append(processo)
+            return
+
+        else:
+            if self.g_recursos.aloca:
+                processo.estado = 2  # Pronto
+                
+                if processo.prioridade == 1:
+                    self.g_filas.fila_p1.append(processo)
+                elif processo.prioridade == 2:
+                    self.g_filas.fila_p2.append(processo)
+                elif processo.prioridade == 3:
+                    self.g_filas.fila_p3.append(processo)
+
+            else:
+                processo.estado = 1  # Suspenso
+        
+        return        
+
+
+    def executa(self):
+
+        while True:
+
+            
+
+            self.novos_processos()
+            #self.g_filas.escalonar()
+            
+            if self.cpu is None:
+                self.cpu = self.g_filas.escolher()
+
+
+            if self.cpu is None:
+                self.tempo += 1
+                continue  # Não há nenhum processo
+
+            print("Dispatcher =>")
+            print("\tPID:\t{}".format(self.cpu.pid))
+            print("\toffset:\t{}".format(self.cpu.bloco_inicio))
+
+
+            self.tempo += 1
+            self.cpu.t_CPU -= 1
+            self.cpu.t_utilizado += 1
+            self.cpu.estado = 3  # Em execução
+            time.sleep(0.1)
+            print("Process {}:\n\t{} =>".format(self.cpu.pid, self.cpu.t_CPU))
+
+
+            self.cpu.estado = 2  # Pronto
+
+            if self.cpu.t_CPU == 0:
+                self.cpu.estado = 5  # Completo
+                self.g_memoria.libera(self.cpu)
+                self.g_recursos.desaloca(self.cpu)
+                
+        
+            if self.cpu.prioridade == 0:
+                if self.cpu.estado == 5:
+                    self.cpu = None
+                else:
+                    continue  # Permanece na cpu, segue para o próximo loop
+            elif self.cpu.prioridade == 1:
+                self.g_filas.fila_p1.append(self.cpu)
+                self.cpu = None
+            elif self.cpu.prioridade == 2:
+                self.g_filas.fila_p2.append(self.cpu)
+                self.cpu = None
+            elif self.cpu.prioridade == 3:
+                self.g_filas.fila_p3.append(self.cpu)
+                self.cpu = None
+                
+
+            if self.acabou():
+                break  # Sai do loop
+
+        return
+
+
+    def acabou(self):
+        return all([p.estado == 5 for p in self.tabela_processos.lista])
+
 
 def le_processos(arq_processos='processes.txt'):
 
@@ -256,25 +422,19 @@ def le_processos(arq_processos='processes.txt'):
             a.t_inicial = int(line[0])
             a.prioridade = int(line[1])
             a.t_CPU = int(line[2])
+            a.t_utilizado = 0
             a.blocos_mem = int(line[3])
             a.cod_impressora = int(line[4])
             a.scanner = int(line[5])
             a.modem = int(line[6])
             a.cod_disco = int(line[7])
+            a.estado = 0  # Shay states
 
             tabela.lista.append(a)
 
     return tabela
 
-    # with open(arq_processos, 'r') as f:
-    #     lines = f.read().splitlines()
-    #     for line in lines:
-    #         for s in line.split(','):
-    #             print(s)
 
-    # with open(arq_processos, 'r') as f:
-    #     for line in f:
-    #         print(line, end='')
 
 
 def le_disco(arq_disco='files.txt'):
@@ -312,13 +472,17 @@ def main():
 
     sistema_arquivos = le_disco()
 
-    for b in tbl_processos.lista:
-        print(b)
+    # for b in tbl_processos.lista:
+    #     print(b)
 
-    for b in sistema_arquivos.__dict__.values():
-        print(b)
+    # for b in sistema_arquivos.__dict__.values():
+    #     print(b)
 
-    print(sistema_arquivos)
+    # print(sistema_arquivos)
+
+    dispatcher = Dispatcher(tbl_processos, sistema_arquivos)
+    dispatcher.executa()
+
 
 if __name__ == '__main__':
     main()
