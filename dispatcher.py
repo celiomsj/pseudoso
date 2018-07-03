@@ -179,6 +179,7 @@ class Disco(object):
         self.qtd_segmentos = None
         self.arquivos = None
         self.operacoes = None
+        self.contador = 0
     
     def alocacao(self):
         mapa = ['0']*self.qtd_blocos
@@ -193,38 +194,50 @@ class Disco(object):
         arq = self.procura_arquivo(nome_arquivo)
         if arq is None:
             # arquivo não existe
+            print("Operação {} => Falha".format(self.contador))
+            print("O arquivo {} não existe.\n".format(nome_arquivo))
             return False
         else:
             if processo.prioridade == 0:
                 # O arquivo existe, o processo tem permissao e 
                 # é preciso excluí-lo do disco.
-                # TODO: Incluir operação no log.
                 self.qtd_segmentos -= 1
                 self.arquivos.remove(arq)
+                print("Operação {} => Sucesso".format(self.contador))
+                print("O processo {} deletou o arquivo {}.\n".format(processo.pid, nome_arquivo))
                 return True
 
             elif processo.prioridade > 0 and processo.pid == arq.criador:
                 self.qtd_segmentos -= 1
                 self.arquivos.remove(arq)
+                print("Operação {} => Sucesso".format(self.contador))
+                print("O processo {} deletou o arquivo {}.\n".format(processo.pid, nome_arquivo))
                 return True
 
             else:
+                print("Operação {} => Falha".format(self.contador))
+                print("O processo {} não pode deletar o arquivo {}.\n".format(processo.pid, nome_arquivo))
                 return False
 
 
     def cria_arquivo(self, processo, nome_arquivo, tamanho):
         
         if self.procura_arquivo(nome_arquivo) is not None:
+            print("Operação {} => Falha".format(self.contador))
+            print("Arquivo {} já existe.\n".format(nome_arquivo))
             return False
 
         inicio = self.procura_espaco_livre(tamanho)
         if inicio == -1:
+            print("Operação {} => Falha".format(self.contador))
+            print("O processo {} não pode criar o arquivo {} (falta de espaço).\n".format(processo.pid, nome_arquivo))
             return False
 
         arq = Arquivo(nome_arquivo, inicio, tamanho, processo.pid)
         self.arquivos.append(arq)
         self.qtd_segmentos += 1
-        # TODO: incluir operação no log
+        print("Operação {} => Sucesso".format(self.contador))
+        print("O processo {} criou o arquivo {} (inicio {}, tamanho {}).\n".format(processo.pid, nome_arquivo, inicio, tamanho))
 
         return True
 
@@ -240,9 +253,25 @@ class Disco(object):
         
         disco = ''.join(self.alocacao())
         return disco.find('0'*tamanho)
-        
-        
 
+
+    def executa_operacoes(self, tabela_processos):
+        
+        for op in self.operacoes:
+            self.contador += 1
+            # Procura processo na tabela de processos.
+            processo = next((p for p in tabela_processos.lista if p.pid == op.pid), None)
+            if processo == None:
+                print("Operação {} => Falha".format(self.contador))
+                print("Não existe o processo.\n")
+            else:
+                if op.cod_operacao == 0:
+                    self.cria_arquivo(processo, op.nome_arquivo, op.tamanho)
+                elif op.cod_operacao == 1:
+                    self.deleta_arquivo(processo, op.nome_arquivo)
+
+
+    
     def __str__(self):
         return ''.join(self.alocacao())
 
@@ -443,10 +472,21 @@ class Dispatcher(object):
         elif processo.prioridade == 3:
             self.g_filas.fila_p3.append(processo)
 
+    
 
+    def executa_operacoesSA(self):
+        '''
+        Executa todas as operações especificadas para o
+        sistema de arquivos.
+        '''
 
-        
+        print("Sistema de arquivos =>")
 
+        self.g_disco.executa_operacoes(self.tabela_processos)
+
+        # Imprime mapa de bits
+        print("Mapa de bits do disco:")
+        print(self.g_disco)
 
 
 
@@ -522,6 +562,8 @@ def main():
 
     dispatcher = Dispatcher(tbl_processos, sistema_arquivos)
     dispatcher.executa()
+
+    dispatcher.executa_operacoesSA()
 
 
 if __name__ == '__main__':
