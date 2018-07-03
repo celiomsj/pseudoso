@@ -1,4 +1,5 @@
 class Arquivo(object):
+    ''' Arquivo de disco.'''
 
     def __init__(self, nome, inicio, tamanho, criador=None):
         self.nome = nome
@@ -11,7 +12,9 @@ class Arquivo(object):
 
     __repr__ = __str__
 
+
 class OperacoesSA(object):
+    ''' Classe para representar operações de disco no sistema de arquivos.'''
 
     def __init__(self, pid, cod_operacao, nome_arquivo, tamanho=None):
         self.pid = pid
@@ -26,6 +29,10 @@ class OperacoesSA(object):
 
 
 class Disco(object):
+    '''
+    Classe para representação de disco e operações de gerência
+    do sistema de arquivos.
+    '''
 
     def __init__(self):
         self.qtd_blocos = None
@@ -35,6 +42,7 @@ class Disco(object):
         self.contador = 0
     
     def alocacao(self):
+        ''' Retorna lista representando o mapa de bits do disco.'''
         mapa = ['0']*self.qtd_blocos
         arqs = sorted(self.arquivos, key=lambda x: x.inicio)
         for arq in arqs:
@@ -43,7 +51,7 @@ class Disco(object):
         return mapa
 
     def deleta_arquivo(self, processo, nome_arquivo):
-        
+        ''' Deleta arquivo no disco.'''
         arq = self.procura_arquivo(nome_arquivo)
         if arq is None:
             # arquivo não existe
@@ -72,9 +80,8 @@ class Disco(object):
                 print("O processo {} não pode deletar o arquivo {}.\n".format(processo.pid, nome_arquivo))
                 return False
 
-
     def cria_arquivo(self, processo, nome_arquivo, tamanho):
-        
+        ''' Cria arquivo no disco.'''
         if self.procura_arquivo(nome_arquivo) is not None:
             print("Operação {} => Falha".format(self.contador))
             print("Arquivo {} já existe.\n".format(nome_arquivo))
@@ -92,24 +99,19 @@ class Disco(object):
         print("Operação {} => Sucesso".format(self.contador))
         print("O processo {} criou o arquivo {} (inicio {}, tamanho {}).\n".format(processo.pid, nome_arquivo, inicio, tamanho))
 
-        return True
-
-        
+        return True        
 
     def procura_arquivo(self, nome_arquivo):
-        ''' Procura arquivo no disco dado o nome, ou retorna None
-        '''
+        ''' Procura arquivo no disco dado o nome, ou retorna None.'''
         return next((arq for arq in self.arquivos if arq.nome == nome_arquivo), None)
 
-
     def procura_espaco_livre(self, tamanho):
-        
+        ''' Procura por espaço contíguo disponível no disco.'''
         disco = ''.join(self.alocacao())
         return disco.find('0'*tamanho)
 
-
     def executa_operacoes(self, tabela_processos):
-        
+        ''' Executa operações no sistema de arquivos.'''
         for op in self.operacoes:
             self.contador += 1
             # Procura processo na tabela de processos.
@@ -123,14 +125,13 @@ class Disco(object):
                 elif op.cod_operacao == 1:
                     self.deleta_arquivo(processo, op.nome_arquivo)
 
-
-    
     def __str__(self):
+        ''' Formato de impressão. Retorna mapa de bits do disco.'''
         return ''.join(self.alocacao())
 
 
 def le_disco(arq_disco='files.txt'):
-    
+    ''' Carrega as informações do disco e as operações a serem executadas.'''
     disco = Disco()
 
     with open(arq_disco, 'r') as f:

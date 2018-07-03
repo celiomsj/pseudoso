@@ -1,10 +1,16 @@
+import sys
 import time
 from memoria import *
 from arquivos import *
 from processos import *
+from recursos import *
 
 
 class Dispatcher(object):
+    '''
+    Classe que realiza o gerenciamento de execução dos processos
+    e aciona os demais módulos.
+    '''
 
     def __init__(self, tabela_processos, disco):
         self.cpu = None
@@ -17,10 +23,9 @@ class Dispatcher(object):
         self.tabela_processos = tabela_processos
         self.g_filas = Escalonador()
         self.g_disco = disco
-
     
     def cria_processo(self, processo):
-        
+        ''' Cria processo, caso exista memória disponível.'''
         if processo.pid is None:
             # É necessário checar se há memória disponível antes de
             # criar o processo.
@@ -32,29 +37,26 @@ class Dispatcher(object):
                 return True
 
         # ELSE Erro. Não ha espaco na memoria.
-
         return False
     
-
     def novos_processos(self):
+        ''' Verifica novos processos que precisam ser criados.'''
         novos = [p for p in self.tabela_processos.lista if p.t_inicial == self.tempo]
         for processo in novos:
             if (self.cria_processo(processo)):
-                # self.tabela_processos.lista.remove(processo)
                 if processo.prioridade > 0:
                     processo.estado = 1  # Suspenso
-                else:  # prioridade 0
+                else:  # Prioridade 0
                     processo.estado = 2  # Pronto
 
-                # Envia para o escalonador
+                # Insere processo em uma fila do escalonador.
                 print("Inserindo processo {} na fila.".format(processo.pid))
                 self.insere(processo)
 
         return
 
-
     def insere(self, processo):
-        
+        ''' Insere um processo em sua respectiva fila de prioridade.'''
         if processo.prioridade == 0:
             self.g_filas.fila_tr.append(processo)
             return
@@ -75,16 +77,17 @@ class Dispatcher(object):
         
         return        
 
-
     def executa(self):
-
+        ''' Loop principal de execução do dispatcher.'''
         while True:
-
+            # Processa se novos processos chegaram neste instante.
             self.novos_processos()
-            #self.g_filas.escalonar()
             
+            # Se há um processo de tempo real na cpu, ele deve continuar sua execução
             if self.cpu is not None:
                 self.executaProcesso(self.cpu)
+            # Caso contrário, o dispatcher deve acionar o escalonador e
+            # executar outro processo.
             else:
                 p_atual = self.g_filas.escolher()
                 if p_atual is not None:
@@ -97,27 +100,27 @@ class Dispatcher(object):
                 else:
                     self.executaProcesso(p_atual)  # O método trata o caso que p_atual é None
 
-                
-
+            # Verifica se todos os processos já foram concluídos.
             if self.acabou():
                 break  # Sai do loop
 
         return
 
-
     def acabou(self):
+        ''' Verifica se todos os processos foram concluídos. '''
         return all([p.estado == 5 for p in self.tabela_processos.lista])
 
-
     def executaProcesso(self, processo):
-
+        '''
+        Executa uma instrução do processo na CPU. Incrementa o clock
+        e imprime informações da execução na tela.
+        '''
         if processo is None:
             self.tempo += self.quantum  # Clock tick
             time.sleep(0.1)
             print("Não há processo a ser executado.")
             return
         
-
         if not(self.ultima_execucao == processo):
             print("Process {} =>".format(processo.pid))
 
@@ -130,7 +133,6 @@ class Dispatcher(object):
             else:
                 print("P{} RESUMED".format(processo.pid))
 
-        
         self.tempo += self.quantum  # Clock tick
         time.sleep(0.1)
 
@@ -140,7 +142,7 @@ class Dispatcher(object):
         print("P{} instruction {}".format(processo.pid, processo.t_utilizado))
         self.ultima_execucao = processo
 
-
+        # Caso o processo tenha concluído, liberar os recursos.
         if processo.t_CPU == 0:
             processo.estado = 5  # Completo
             self.g_memoria.libera(processo)
@@ -148,20 +150,18 @@ class Dispatcher(object):
             self.cpu = None
             print("P{} return SIGINT".format(processo.pid))
         else:
+            # Se o processo não é de tempo real, é interrompido
             if processo.prioridade > 0:
                 self.cpu = None
         
         return
-
 
     def atualiza_processo(self, processo):
         '''
         Atualiza o processo nas fila.
         Incrementa a prioridade de processso de usuario.
         '''
-
         # Se a prioridade for 0, não é necessário fazer nada.
-
         if processo.prioridade == 1:
             processo.prioridade = 2
             self.g_filas.fila_p2.append(processo)
@@ -170,73 +170,67 @@ class Dispatcher(object):
             self.g_filas.fila_p3.append(processo)
         elif processo.prioridade == 3:
             self.g_filas.fila_p3.append(processo)
-
-    
-
+   
     def executa_operacoesSA(self):
         '''
         Executa todas as operações especificadas para o
         sistema de arquivos.
         '''
-
         print("Sistema de arquivos =>")
-
         self.g_disco.executa_operacoes(self.tabela_processos)
 
         # Imprime mapa de bits
         print("Mapa de bits do disco:")
         print(self.g_disco)
 
-
-
 def le_processos(arq_processos='processes.txt'):
-
+    '''
+    Carrega as informações do arquivo de processos e retorna uma TabelaProcessos.
+    '''
     tabela = TabelaProcessos()
     
     with open(arq_processos, 'r') as f:
         lines = f.read().splitlines()
         for line in lines:
             line = line.split(', ')
-            a = Processo()
-            a.t_inicial = int(line[0])
-            a.prioridade = int(line[1])
-            a.t_CPU = int(line[2])
-            a.t_utilizado = 0
-            a.blocos_mem = int(line[3])
-            a.cod_impressora = int(line[4])
-            a.scanner = int(line[5])
-            a.modem = int(line[6])
-            a.cod_disco = int(line[7])
-            a.estado = 0  # Shay states
+            p = Processo()
+            p.t_inicial = int(line[0])
+            p.prioridade = int(line[1])
+            p.t_CPU = int(line[2])
+            p.t_utilizado = 0
+            p.blocos_mem = int(line[3])
+            p.cod_impressora = int(line[4])
+            p.scanner = int(line[5])
+            p.modem = int(line[6])
+            p.cod_disco = int(line[7])
+            p.estado = 0  # Shay states
 
-            tabela.lista.append(a)
+            tabela.lista.append(p)
 
     return tabela
 
 
-
-
-
-
-
-
 def main():
-    
-    tbl_processos = le_processos()
+    '''
+    Carrega os arquivos de entrada e executa o dispatcher, realizando
+    o gerenciamento dos processos e as operações no sistema de arquivos.
+    '''
+    if len(sys.argv) > 2:
+        arq_processos = sys.argv[1]
+        arq_disco = sys.argv[2]
+    else:
+        arq_processos = 'processes.txt'
+        arq_disco = 'files.txt'
 
-    sistema_arquivos = le_disco()
-
-    # for b in tbl_processos.lista:
-    #     print(b)
-
-    # for b in sistema_arquivos.__dict__.values():
-    #     print(b)
-
-    # print(sistema_arquivos)
+    # Carrega as informações dos arquivos nas estruturas de dados
+    tbl_processos = le_processos(arq_processos)
+    sistema_arquivos = le_disco(arq_disco)
 
     dispatcher = Dispatcher(tbl_processos, sistema_arquivos)
     dispatcher.executa()
 
+    # Executa as operações no sistema de arquivos. Utiliza a lista de
+    # processos criados anteriormente.
     dispatcher.executa_operacoesSA()
 
 

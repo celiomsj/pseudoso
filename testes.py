@@ -1,20 +1,19 @@
 import unittest
 from dispatcher import *
 
+
 class TesteDisco(unittest.TestCase):
 
     def setUp(self):
         pass
 
     def test_procura_arquivo(self):
-
         sa = le_disco()
 
         self.assertIsNone(sa.procura_arquivo('A'))
         self.assertTrue(sa.procura_arquivo('X').tamanho == 2)
 
     def test_deleta_arquivo(self):
-
         sa = le_disco()
         p1 = Processo()
         p1.prioridade = 0
@@ -26,7 +25,6 @@ class TesteDisco(unittest.TestCase):
         self.assertFalse(sa.deleta_arquivo(p1, 'A'))
 
     def test_procura_escapo(self):
-
         sa = le_disco()
 
         self.assertEqual(sa.procura_espaco_livre(6), -1)
@@ -34,7 +32,6 @@ class TesteDisco(unittest.TestCase):
         self.assertEqual(sa.procura_espaco_livre(3), 6)
 
     def test_cria_arquivo(self):
-
         sa = le_disco()
         p1 = Processo()
         p1.pid = 1
@@ -45,7 +42,6 @@ class TesteDisco(unittest.TestCase):
         self.assertEqual(''.join(sa.alocacao()), 'XX0Y0ZAAA0')
 
     def test_aloca_memoria(self):
-
         m = Memoria()
         p1 = Processo()
         p1.pid = 1
@@ -62,7 +58,6 @@ class TesteDisco(unittest.TestCase):
         self.assertTrue(m.aloca(p2))
 
     def test_libera_memoria(self):
-
         m = Memoria()
         p1 = Processo()
         p1.pid = 1
@@ -74,9 +69,7 @@ class TesteDisco(unittest.TestCase):
         self.assertTrue(m.libera(p1))
         self.assertIsNone(p1.bloco_inicio)
 
-
     def test_aloca_recurso(self):
-
         p1 = Processo()
         p1.pid = 1
         p1.prioridade = 0
@@ -107,8 +100,5 @@ class TesteDisco(unittest.TestCase):
         self.assertIsNone(ges.disco[1])
 
 
-
-
 if __name__ == '__main__':
     unittest.main()
-    
