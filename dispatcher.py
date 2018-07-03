@@ -91,9 +91,16 @@ class Dispatcher(object):
             else:
                 p_atual = self.g_filas.escolher()
                 if p_atual is not None:
-                    print("Dispatcher =>")
+                    print("\ndispatcher =>")
                     print("\tPID:\t{}".format(p_atual.pid))
                     print("\toffset:\t{}".format(p_atual.bloco_inicio))
+                    print("\tblocks:\t{}".format(p_atual.blocos_mem))
+                    print("\tpriority:\t{}".format(p_atual.prioridade))
+                    print("\ttime:\t{}".format(p_atual.t_CPU))
+                    print("\tprinters:\t{}".format(p_atual.cod_impressora))
+                    print("\tscanners:\t{}".format(p_atual.scanner))
+                    print("\tmodems:\t{}".format(p_atual.modem))
+                    print("\tdrives:\t{}".format(p_atual.cod_disco))
                     
                     self.executaProcesso(p_atual)
                     self.atualiza_processo(p_atual)
@@ -122,7 +129,7 @@ class Dispatcher(object):
             return
         
         if not(self.ultima_execucao == processo):
-            print("Process {} =>".format(processo.pid))
+            print("\nprocess {} =>".format(processo.pid))
 
         if processo.prioridade == 0:
             if processo.t_utilizado == 0:
@@ -176,7 +183,7 @@ class Dispatcher(object):
         Executa todas as operações especificadas para o
         sistema de arquivos.
         '''
-        print("Sistema de arquivos =>")
+        print("\nSistema de arquivos =>")
         self.g_disco.executa_operacoes(self.tabela_processos)
 
         # Imprime mapa de bits
